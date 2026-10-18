@@ -1,5 +1,7 @@
 # Retro Shooter
 
+[![CI](https://github.com/grump606/retro-shooter/actions/workflows/ci.yml/badge.svg)](https://github.com/grump606/retro-shooter/actions/workflows/ci.yml)
+
 A retro top-down arcade shooter written in Go with [Ebitengine](https://ebitengine.org).
 Survive endless waves of aliens.
 
