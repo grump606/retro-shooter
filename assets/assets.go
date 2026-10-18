@@ -1,31 +1,34 @@
 // Package assets builds the game's images once at startup.
 //
-// The sprites are pixel art defined as text grids below, so the game runs with
-// no downloaded files. To use real art (e.g. Kenney's CC0 "Pixel Shmup" pack),
-// drop PNGs in assets/images, embed them with //go:embed, and decode them in
-// Load in place of the sprite() calls. Keep the ship pointing right.
+// Sprites are pixel art defined as text grids (enemy sprites live with the
+// rest of each enemy's settings in world.EnemyDefs), so the game runs with no
+// downloaded files. To use real art (e.g. Kenney's CC0 "Pixel Shmup" pack),
+// embed PNGs with //go:embed and decode them in Load in place of sprite().
+// Keep the ship pointing right.
 package assets
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+
+	"retro-shooter/internal/world"
 )
 
 // Assets holds every image the game draws. Treat it as read-only.
 type Assets struct {
 	Ship         *ebiten.Image
-	Grunt        *ebiten.Image
-	Fast         *ebiten.Image
-	Tank         *ebiten.Image
+	Enemies      [world.NumEnemyKinds]*ebiten.Image // indexed by world.EnemyKind
 	PlayerBullet *ebiten.Image
 	EnemyBullet  *ebiten.Image
 	Pixel        *ebiten.Image // 1×1 white; scale and tint it for rects and particles
 }
 
-// Palette: a small retro set (PICO-8 inspired).
-var palette = map[byte]color.RGBA{
+// Palette maps the letters used in sprite grids (and EnemyDef.Debris) to
+// colors: a small retro set inspired by PICO-8.
+var Palette = map[byte]color.RGBA{
 	'k': {0x1d, 0x2b, 0x53, 0xff}, // dark blue outline
 	'w': {0xff, 0xf1, 0xe8, 0xff}, // white
 	'c': {0x29, 0xad, 0xff, 0xff}, // cyan
@@ -38,58 +41,40 @@ var palette = map[byte]color.RGBA{
 	'm': {0xff, 0x77, 0xa8, 0xff}, // pink
 }
 
+// ShipSprite is the player ship. It points right (angle 0); the game rotates
+// it toward the mouse. Also used to generate the app icon (tools/mkicon).
+var ShipSprite = []string{
+	"oo.kk......",
+	".okbbk.....",
+	"..kbbbkk...",
+	".okbbbbcck.",
+	"ookbbbbccwk",
+	".okbbbbcck.",
+	"..kbbbkk...",
+	".okbbk.....",
+	"oo.kk......",
+}
+
+// SpriteRGBA renders a sprite grid to a plain image (no GPU needed).
+func SpriteRGBA(rows []string) *image.RGBA { return spriteRGBA(rows) }
+
+// Color returns the palette color for a letter. It panics on an unknown
+// letter, which the tests catch before the game ships.
+func Color(letter byte) color.RGBA {
+	c, ok := Palette[letter]
+	if !ok {
+		panic(fmt.Sprintf("assets: unknown palette letter %q", letter))
+	}
+	return c
+}
+
 // Load builds all images. Call it once at startup; it is safe to call before
 // ebiten.RunGame.
 func Load() *Assets {
 	px := ebiten.NewImage(1, 1)
 	px.Fill(color.White)
-	return &Assets{
-		// Points right (angle 0); the game rotates it toward the mouse.
-		Ship: sprite(
-			"oo.kk......",
-			".okbbk.....",
-			"..kbbbkk...",
-			".okbbbbcck.",
-			"ookbbbbccwk",
-			".okbbbbcck.",
-			"..kbbbkk...",
-			".okbbk.....",
-			"oo.kk......",
-		),
-		Grunt: sprite(
-			"..kkkkk..",
-			".kgggggk.",
-			"kgwkgwkgk",
-			"kgggggggk",
-			"kgggggggk",
-			".kgkgkgk.",
-			"..k.k.k..",
-		),
-		Fast: sprite(
-			"...k...",
-			"..kyk..",
-			".kyoyk.",
-			"kyoroyk",
-			".kyoyk.",
-			"..kyk..",
-			"...k...",
-		),
-		Tank: sprite(
-			"....kkkkkkk....",
-			"..kkpppppppkk..",
-			".kppmmmmmmmppk.",
-			".kpmmpppppmmpk.",
-			"kpmmpkkkkkpmmpk",
-			"kpmpkrrrrrkpmpk",
-			"kpmpkrwwwrkpmpk",
-			"kpmpkrwwwrkpmpk",
-			"kpmpkrrrrrkpmpk",
-			"kpmmpkkkkkpmmpk",
-			".kpmmpppppmmpk.",
-			".kppmmmmmmmppk.",
-			"..kkpppppppkk..",
-			"....kkkkkkk....",
-		),
+	a := &Assets{
+		Ship: sprite(ShipSprite...),
 		PlayerBullet: sprite(
 			".c.",
 			"cwc",
@@ -102,17 +87,25 @@ func Load() *Assets {
 		),
 		Pixel: px,
 	}
+	for k := range world.NumEnemyKinds {
+		a.Enemies[k] = sprite(k.Def().Sprite...)
+	}
+	return a
 }
 
 // sprite turns rows of palette letters into an image; '.' is transparent.
 func sprite(rows ...string) *ebiten.Image {
+	return ebiten.NewImageFromImage(spriteRGBA(rows))
+}
+
+func spriteRGBA(rows []string) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, len(rows[0]), len(rows)))
 	for y, row := range rows {
 		for x := range len(row) {
-			if c, ok := palette[row[x]]; ok {
-				img.SetRGBA(x, y, c)
+			if row[x] != '.' {
+				img.SetRGBA(x, y, Color(row[x]))
 			}
 		}
 	}
-	return ebiten.NewImageFromImage(img)
+	return img
 }

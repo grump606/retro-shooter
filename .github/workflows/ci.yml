@@ -57,6 +57,47 @@ jobs:
           govulncheck ./...
           GOOS=windows govulncheck ./...
 
+      - name: Windows icon/version resources are up to date
+        run: |
+          V=$(tr -d '[:space:]' < VERSION)
+          go run ./tools/mkicon -out build/windows
+          go run github.com/tc-hib/go-winres@v0.3.3 make \
+            --in build/windows/winres.json --out rsrc --arch amd64 \
+            --file-version "$V.0" --product-version "$V.0"
+          if ! git diff --exit-code --stat -- rsrc_windows_amd64.syso build/windows; then
+            echo "Regenerate with scripts/build-installer.sh and commit the result."; exit 1
+          fi
+
+  installer:
+    name: Windows installer
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Install Inno Setup (if the runner lacks it)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build installer
+        shell: bash
+        env:
+          MSYS_NO_PATHCONV: "1" # keep ISCC's /Q-style switches intact
+        run: scripts/build-installer.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: retro-shooter-installer
+          path: dist/RetroShooter-Setup-*.exe
+          retention-days: 14
+
   build:
     name: Build ${{ matrix.goos }}
     needs: check

@@ -21,7 +21,7 @@ func drawWorld(dst *ebiten.Image, a *assets.Assets, w *world.World) {
 	}
 
 	for _, e := range w.Enemies {
-		img := enemyImage(a, e.Kind)
+		img := a.Enemies[e.Kind]
 		if e.Flash > 0 {
 			// Flash pure white when hit.
 			var cm colorm.ColorM
@@ -39,17 +39,6 @@ func drawWorld(dst *ebiten.Image, a *assets.Assets, w *world.World) {
 	blinkOff := p.Invuln > 0 && (p.Invuln/4)%2 == 1
 	if p.HP > 0 && !blinkOff {
 		drawCentered(dst, a.Ship, p.Pos, p.Angle)
-	}
-}
-
-func enemyImage(a *assets.Assets, k world.EnemyKind) *ebiten.Image {
-	switch k {
-	case world.Fast:
-		return a.Fast
-	case world.Tank:
-		return a.Tank
-	default:
-		return a.Grunt
 	}
 }
 

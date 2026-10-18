@@ -36,7 +36,12 @@ func (g *Game) Update() error {
 		(inpututil.IsKeyJustPressed(ebiten.KeyEnter) && ebiten.IsKeyPressed(ebiten.KeyAlt)) {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
 	}
-	if next := g.scene.Update(g.pollInput()); next != nil {
+	next := g.scene.Update(g.pollInput())
+	if next == Quit {
+		// Clean shutdown: RunGame returns nil and the program exits.
+		return ebiten.Termination
+	}
+	if next != nil {
 		g.scene = next
 	}
 	return nil
@@ -90,6 +95,7 @@ func (g *Game) DrawFinalScreen(screen ebiten.FinalScreen, offscreen *ebiten.Imag
 // pollInput is the only place that reads the keyboard and mouse.
 func (g *Game) pollInput() input.State {
 	key := ebiten.IsKeyPressed
+	pressed := inpututil.IsKeyJustPressed
 	mx, my := g.cursor()
 	return input.State{
 		Up:           key(ebiten.KeyW) || key(ebiten.KeyArrowUp),
@@ -100,6 +106,10 @@ func (g *Game) pollInput() input.State {
 		MouseY:       my,
 		Fire:         ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) || key(ebiten.KeySpace),
 		FirePressed:  inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) || inpututil.IsKeyJustPressed(ebiten.KeySpace),
+		MenuUp:       pressed(ebiten.KeyW) || pressed(ebiten.KeyArrowUp),
+		MenuDown:     pressed(ebiten.KeyS) || pressed(ebiten.KeyArrowDown),
+		Confirm:      pressed(ebiten.KeyEnter) || pressed(ebiten.KeyNumpadEnter) || pressed(ebiten.KeySpace),
+		Click:        inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft),
 		PausePressed: inpututil.IsKeyJustPressed(ebiten.KeyP) || inpututil.IsKeyJustPressed(ebiten.KeyEscape),
 		DebugPressed: inpututil.IsKeyJustPressed(ebiten.KeyF3),
 		Focused:      ebiten.IsFocused(),

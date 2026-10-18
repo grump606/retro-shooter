@@ -15,6 +15,11 @@ type State struct {
 	Fire        bool // fire button held (gameplay)
 	FirePressed bool // fire button went down this tick (menus)
 
+	// Menus
+	MenuUp, MenuDown bool // W/S or arrow keys went down this tick
+	Confirm          bool // Enter or Space went down this tick
+	Click            bool // left mouse button went down this tick
+
 	PausePressed bool // P or Esc went down this tick
 	DebugPressed bool // F3 went down this tick
 

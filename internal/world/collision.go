@@ -40,8 +40,8 @@ func (w *World) resolveCollisions() {
 	for _, e := range w.Enemies {
 		if !e.dead && overlaps(e.Pos, e.Radius, p.Pos, p.Radius) {
 			hit = true
-			// Small enemies are destroyed by ramming (no score); tanks survive.
-			if e.Kind != Tank {
+			// Ramming destroys most enemies (no score); some survive it.
+			if !e.Kind.Def().SurvivesRam {
 				e.dead = true
 				w.emit(Event{Kind: EvEnemyKilled, Pos: e.Pos, Enemy: e.Kind})
 			}

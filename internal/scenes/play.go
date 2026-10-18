@@ -8,6 +8,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
+	"retro-shooter/assets"
 	"retro-shooter/internal/audio"
 	"retro-shooter/internal/game"
 	"retro-shooter/internal/input"
@@ -124,16 +125,10 @@ func (s *Play) handleEvents() {
 			s.fx.Burst(ev.Pos, 4, 1.5, colorWhite)
 		case world.EvEnemyKilled:
 			s.d.Audio.Play(audio.Explode)
-			n, c := 14, colorGreen
-			switch ev.Enemy {
-			case world.Fast:
-				c = colorYellow
-			case world.Tank:
-				n, c = 40, colorPink
-				s.shake = max(s.shake, 10)
-			}
-			s.fx.Burst(ev.Pos, n, 2, c)
-			s.fx.Burst(ev.Pos, n/2, 1, colorOrange)
+			d := ev.Enemy.Def()
+			s.fx.Burst(ev.Pos, d.DebrisCount, 2, assets.Color(d.Debris))
+			s.fx.Burst(ev.Pos, d.DebrisCount/2, 1, colorOrange)
+			s.shake = max(s.shake, d.Shake)
 		case world.EvPlayerHit:
 			s.d.Audio.Play(audio.PlayerHit)
 			s.fx.Burst(ev.Pos, 12, 2, colorRed)
@@ -181,12 +176,10 @@ func (s *Play) Draw(screen *ebiten.Image) {
 	}
 }
 
+// Effect colors come from the shared sprite palette.
 var (
-	colorWhite  = color.RGBA{0xff, 0xf1, 0xe8, 0xff}
-	colorGreen  = color.RGBA{0x00, 0xe4, 0x36, 0xff}
-	colorYellow = color.RGBA{0xff, 0xec, 0x27, 0xff}
-	colorOrange = color.RGBA{0xff, 0xa3, 0x00, 0xff}
-	colorPink   = color.RGBA{0xff, 0x77, 0xa8, 0xff}
-	colorRed    = color.RGBA{0xff, 0x00, 0x4d, 0xff}
-	colorCyan   = color.RGBA{0x29, 0xad, 0xff, 0xff}
+	colorWhite  = assets.Color('w')
+	colorOrange = assets.Color('o')
+	colorRed    = assets.Color('r')
+	colorCyan   = assets.Color('c')
 )

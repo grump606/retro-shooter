@@ -14,3 +14,11 @@ type Scene interface {
 	Update(in input.State) Scene
 	Draw(screen *ebiten.Image)
 }
+
+// Quit is returned from Scene.Update to close the program.
+var Quit Scene = quitScene{}
+
+type quitScene struct{}
+
+func (quitScene) Update(input.State) Scene { return nil }
+func (quitScene) Draw(*ebiten.Image)       {}
