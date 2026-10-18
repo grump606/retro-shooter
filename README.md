@@ -17,9 +17,10 @@ Survive endless waves of aliens.
 | Title menu | W/S or arrows to choose, Enter/Space or click to select (START / EXIT) |
 
 ## Installing on Windows
-Download `RetroShooter-Setup-<version>.exe` from the latest
-[CI run](https://github.com/grump606/retro-shooter/actions/workflows/ci.yml)
-(artifact `retro-shooter-installer`) and run it. It installs for your user only
+**[Download the installer](https://github.com/grump606/retro-shooter/releases/latest/download/RetroShooter-Setup.exe)**
+(latest version; older versions are on the
+[Releases page](https://github.com/grump606/retro-shooter/releases)) and run it.
+It installs for your user only
 (no admin prompt) into `%LOCALAPPDATA%\Programs\Retro Shooter`, adds a desktop
 icon (optional, on by default) and a Start menu entry, and can be removed from
 Windows Settings → Apps.
@@ -35,6 +36,16 @@ Needs Inno Setup 6 on Windows (`winget install JRSoftware.InnoSetup --scope user
 The version comes from the `VERSION` file. The app icon is generated from the
 ship sprite (`tools/mkicon`) and embedded in the exe (`rsrc_windows_amd64.syso`);
 the script regenerates both, so commit them after changing `VERSION` or the ship.
+
+### Publishing a release
+1. Set the new version in `VERSION`, run `scripts/build-installer.sh`, commit and push.
+2. Tag that commit and push the tag:
+   ```sh
+   git tag v0.3.0 && git push origin v0.3.0
+   ```
+CI checks the tag matches `VERSION`, builds the installer and publishes a
+GitHub Release, which updates the download link above. Every CI run also
+keeps its builds as artifacts for 14 days (sign-in required).
 
 ## Running
 
