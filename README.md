@@ -20,20 +20,25 @@ Survive endless waves of aliens.
 GOOS=windows go build -o shooter.exe . && ./shooter.exe
 ```
 
-**Natively on Linux / WSLg** (needs a C compiler and X11/OpenGL headers):
+**Natively on Linux / WSLg:**
 ```sh
-sudo apt install gcc libc6-dev libgl1-mesa-dev libxcursor-dev libxi-dev \
-  libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config
 go run .
 ```
+No C compiler needed: Ebitengine loads OpenGL/X11 at runtime. Sound uses
+PulseAudio (WSLg provides it) or ALSA.
 
-If sound fails to start, run with `-mute`.
+If the sound device fails, the game prints the reason and restarts itself
+without sound. You can also force this with `-mute`.
+
+The repo pins Go 1.27.2 via the `toolchain` line in `go.mod`; with a newer or
+older local Go, the right version is downloaded automatically.
 
 ## Tests
 ```sh
-go test ./internal/world ./internal/level
+go test ./...
 ```
-The game logic doesn't import Ebitengine, so these tests run anywhere.
+The game logic, wave manager and screen-scaling math don't import Ebitengine,
+so their tests run anywhere, with no window.
 
 ## Layout
 ```
@@ -45,6 +50,7 @@ internal/world     simulation: player, enemies, bullets, collisions, events
 internal/level     wave definitions and spawning
 internal/ui        text helpers and HUD
 internal/input     per-tick input snapshot
+internal/scaling   pixel-perfect scaling + mouse remapping math (tested)
 internal/audio     audio context + synthesized sound effects
 ```
 

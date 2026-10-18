@@ -2,10 +2,12 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -34,11 +36,45 @@ func main() {
 		Stars:  scenes.NewStarfield(1),
 	}
 
-	if err := ebiten.RunGame(game.New(scenes.NewTitle(deps))); err != nil {
-		// Ebitengine stops the game if the audio device fails.
-		if !*mute && strings.Contains(err.Error(), "audio") {
-			fmt.Fprintln(os.Stderr, "Sound failed to start. Run again with -mute to play without sound.")
-		}
-		log.Fatal(err)
+	err := ebiten.RunGame(game.New(scenes.NewTitle(deps)))
+	if err == nil {
+		return
 	}
+	// Ebitengine stops the game when the audio device fails, and an audio
+	// context can't be created twice in one process. So keep the game
+	// playable by relaunching ourselves without sound.
+	if !*mute && isAudioError(err) {
+		fmt.Fprintf(os.Stderr, "Sound failed (%v). Restarting without sound...\n", err)
+		os.Exit(relaunchMuted())
+	}
+	log.Fatal(err)
+}
+
+// isAudioError reports whether err came from the sound system. Ebitengine's
+// audio package prefixes its errors with "audio: ", but a device that fails
+// to open returns the raw error from its backend library, oto ("oto: ").
+// Neither exposes an error type, so matching prefixes is the best available.
+func isAudioError(err error) bool {
+	msg := err.Error()
+	return strings.HasPrefix(msg, "audio: ") || strings.HasPrefix(msg, "oto: ")
+}
+
+// relaunchMuted runs this program again with -mute and returns its exit code.
+func relaunchMuted() int {
+	exe, err := os.Executable()
+	if err != nil {
+		log.Printf("can't find own executable to relaunch: %v (run with -mute)", err)
+		return 1
+	}
+	cmd := exec.Command(exe, append([]string{"-mute"}, os.Args[1:]...)...)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	if err := cmd.Run(); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			return exit.ExitCode()
+		}
+		log.Printf("relaunch failed: %v (run with -mute)", err)
+		return 1
+	}
+	return 0
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
 	"retro-shooter/internal/input"
+	"retro-shooter/internal/scaling"
 	"retro-shooter/internal/world"
 )
 
@@ -19,13 +20,13 @@ type Game struct {
 	scene Scene
 
 	// Transforms from the last frame, used to map the cursor. See cursor().
-	defaultGeoM ebiten.GeoM // where Ebitengine would draw the screen
-	pixelGeoM   ebiten.GeoM // where we actually draw it (whole-number scale)
+	defaultT scaling.Transform // how Ebitengine would draw the screen
+	drawnT   scaling.Transform // how we actually draw it (whole-number scale)
 }
 
 // New returns a Game starting on the given scene.
 func New(first Scene) *Game {
-	return &Game{scene: first}
+	return &Game{scene: first, defaultT: scaling.Identity, drawnT: scaling.Identity}
 }
 
 // Update runs one fixed 60 TPS tick. All game logic counts ticks, never
@@ -69,27 +70,21 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 // The rest is filled with black bars.
 func (g *Game) DrawFinalScreen(screen ebiten.FinalScreen, offscreen *ebiten.Image, geoM ebiten.GeoM) {
 	sw, sh := float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy())
-	fit := math.Min(sw/world.ScreenW, sh/world.ScreenH)
-	scale := math.Floor(fit)
-	if scale < 1 {
-		scale = fit // window smaller than 320×240: shrink instead
+	t := scaling.PixelPerfect(sw, sh, world.ScreenW, world.ScreenH)
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(t.Scale, t.Scale)
+	op.GeoM.Translate(t.OffX, t.OffY)
+	op.Filter = ebiten.FilterNearest
+	if t.Scale < 1 {
+		op.Filter = ebiten.FilterLinear // shrinking: smooth instead of dropping pixels
 	}
-
-	var m ebiten.GeoM
-	m.Scale(scale, scale)
-	m.Translate(math.Floor((sw-world.ScreenW*scale)/2), math.Floor((sh-world.ScreenH*scale)/2))
-
 	screen.Fill(color.Black)
-	op := &ebiten.DrawImageOptions{GeoM: m}
-	if scale >= 1 {
-		op.Filter = ebiten.FilterNearest
-	} else {
-		op.Filter = ebiten.FilterLinear
-	}
 	screen.DrawImage(offscreen, op)
 
-	g.defaultGeoM = geoM
-	g.pixelGeoM = m
+	// Ebitengine's default transform is a plain scale + translate.
+	g.defaultT = scaling.Transform{Scale: geoM.Element(0, 0), OffX: geoM.Element(0, 2), OffY: geoM.Element(1, 2)}
+	g.drawnT = t
 }
 
 // pollInput is the only place that reads the keyboard and mouse.
@@ -112,20 +107,9 @@ func (g *Game) pollInput() input.State {
 }
 
 // cursor returns the mouse position in logical pixels, clamped to the screen.
-//
-// Ebitengine maps the cursor using its own default scaling, but we draw with
-// whole-number scaling instead. So we undo the default transform and apply
-// the inverse of ours. Before the first frame both are identity, which is fine.
+// Ebitengine reports it using its own default scaling, but we draw with
+// whole-number scaling, so it's remapped (see scaling.RemapCursor).
 func (g *Game) cursor() (float64, float64) {
 	x, y := ebiten.CursorPositionF()
-	x, y = g.defaultGeoM.Apply(x, y)
-	inv := g.pixelGeoM
-	if inv.IsInvertible() {
-		inv.Invert()
-		x, y = inv.Apply(x, y)
-	}
-	// Outside the play area (black bars, or off the window): clamp.
-	x = math.Max(0, math.Min(world.ScreenW-1, x))
-	y = math.Max(0, math.Min(world.ScreenH-1, y))
-	return x, y
+	return scaling.RemapCursor(x, y, g.defaultT, g.drawnT, world.ScreenW, world.ScreenH)
 }

@@ -2,6 +2,8 @@ module retro-shooter
 
 go 1.27.1
 
+toolchain go1.27.2
+
 require github.com/hajimehoshi/ebiten/v2 v2.10.5
 
 require (

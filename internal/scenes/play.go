@@ -44,6 +44,8 @@ func NewPlay(d *Deps) *Play {
 		canvas: ebiten.NewImage(world.ScreenW, world.ScreenH),
 		// The click that started the game shouldn't also fire a shot.
 		waitRelease: true,
+		// The title screen already blipped for wave 1; only blip for later waves.
+		lastWave: 1,
 	}
 }
 
@@ -81,10 +83,14 @@ func (s *Play) Update(in input.State) game.Scene {
 
 	s.d.Stars.Update()
 	s.w.Update(in)
-	s.levels.Update(s.w)
-	if s.levels.Wave() != s.lastWave {
-		s.lastWave = s.levels.Wave()
-		s.d.Audio.Play(audio.Blip)
+	// Waves stop once the player is dead; otherwise new enemies would pop in
+	// frozen during the death animation and the next wave could start.
+	if !s.w.GameOver() {
+		s.levels.Update(s.w)
+		if s.levels.Wave() != s.lastWave {
+			s.lastWave = s.levels.Wave()
+			s.d.Audio.Play(audio.Blip)
+		}
 	}
 	s.handleEvents()
 	s.fx.Update()
