@@ -36,11 +36,18 @@ const (
 
 var menuLabels = [numItems]string{itemStart: "START", itemExit: "EXIT"}
 
-// Menu layout in logical pixels.
+// Title screen layout in logical pixels.
 const (
+	titleY        = 30 // "RETRO"
+	titleScale    = 4
+	subtitleY     = 90 // "SHOOTER"
+	subtitleScale = 3
+	controlsY     = 196 // two lines of control hints near the bottom
+
 	menuTop     = 140 // y of the first item
 	menuSpacing = 18  // distance between items
 	menuPadX    = 12  // clickable area extends this far beyond the label
+	menuBoxGap  = 2   // the highlight box stops this short of the next item
 )
 
 // acceptInputAfter ignores input for a few ticks so a click or key press from
@@ -118,23 +125,23 @@ func (s *Title) Draw(screen *ebiten.Image) {
 	screen.Fill(ui.Night)
 	s.d.Stars.Draw(screen, s.d.Assets.Pixel)
 
-	ui.BigText(screen, "RETRO", 30, 4, ui.Cyan)
-	ui.BigText(screen, "SHOOTER", 90, 3, ui.Yellow)
+	ui.BigText(screen, "RETRO", titleY, titleScale, ui.Cyan)
+	ui.BigText(screen, "SHOOTER", subtitleY, subtitleScale, ui.Yellow)
 
 	for i := range numItems {
 		y := menuTop + int(i)*menuSpacing
 		if int(i) == s.selected {
 			left, top, right, bottom := itemBounds(i)
-			ui.Rect(screen, left, top, right-left, bottom-top-2, ui.Dark)
+			ui.Rect(screen, left, top, right-left, bottom-top-menuBoxGap, ui.Dark)
 			ui.BigText(screen, "> "+menuLabels[i]+" <", y, 1, ui.Yellow)
 		} else {
 			ui.BigText(screen, menuLabels[i], y, 1, ui.Grey)
 		}
 	}
 
-	ui.TextCentered(screen, "WASD MOVE  MOUSE AIM  CLICK FIRE", 196)
-	ui.TextCentered(screen, "P PAUSE   F11 FULLSCREEN", 212)
+	ui.TextCentered(screen, "WASD MOVE  MOUSE AIM  CLICK FIRE", controlsY)
+	ui.TextCentered(screen, "P PAUSE   F11 FULLSCREEN", controlsY+ui.LineH)
 	if s.d.HighScore > 0 {
-		ui.TextCentered(screen, fmt.Sprintf("HI %06d", s.d.HighScore), 4)
+		ui.TextCentered(screen, fmt.Sprintf("HI %06d", s.d.HighScore), ui.Margin)
 	}
 }

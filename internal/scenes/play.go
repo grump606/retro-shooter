@@ -19,6 +19,16 @@ import (
 
 const deathDelay = 90 // ticks to watch the explosion before game over
 
+const (
+	// maxShakePx caps how far (in whole pixels) the screen moves while shaking.
+	maxShakePx = 3
+
+	// debugY puts the F3 overlay's 4 lines one line above the bottom edge.
+	debugY = world.ScreenH - 5*ui.LineH
+
+	pauseDimAlpha = 0xa0 // how dark the pause overlay is (0–255)
+)
+
 // Play owns everything for one run: the World, the wave LevelManager and
 // visual effects. A new Play (and so a fresh World) is made for every run.
 type Play struct {
@@ -26,6 +36,7 @@ type Play struct {
 	w      *world.World
 	levels *level.Manager
 	fx     *Particles
+	rng    *rand.Rand    // visual randomness (screen shake)
 	canvas *ebiten.Image // world is drawn here first so it can be shaken
 
 	paused      bool
@@ -42,6 +53,7 @@ func NewPlay(d *Deps) *Play {
 		w:      world.New(),
 		levels: level.New(seed),
 		fx:     NewParticles(seed),
+		rng:    rand.New(rand.NewPCG(seed, seed+13)),
 		canvas: d.Canvas(),
 		// The click that started the game shouldn't also fire a shot.
 		waitRelease: true,
@@ -150,11 +162,12 @@ func (s *Play) Draw(screen *ebiten.Image) {
 	drawWorld(c, a, s.w)
 	s.fx.Draw(c, a.Pixel)
 
-	// Screen shake: draw the canvas at a small random offset.
+	// Screen shake: draw the canvas at a small random whole-pixel offset, so
+	// the pixel art never lands between pixels and blurs or shimmers.
 	op := &ebiten.DrawImageOptions{}
-	if s.shake > 0 && !s.paused {
-		mag := float64(min(s.shake, 6)) / 2
-		op.GeoM.Translate(float64(rand.IntN(3)-1)*mag, float64(rand.IntN(3)-1)*mag)
+	if !s.paused {
+		dx, dy := shakeOffset(s.shake, s.rng)
+		op.GeoM.Translate(float64(dx), float64(dy))
 	}
 	screen.Fill(ui.Night)
 	screen.DrawImage(c, op)
@@ -162,17 +175,17 @@ func (s *Play) Draw(screen *ebiten.Image) {
 	ui.DrawHUD(screen, s.w, s.levels.Wave())
 
 	if s.levels.InIntermission() && !s.w.GameOver() {
-		ui.BigText(screen, fmt.Sprintf("WAVE %d", s.levels.Wave()), 90, 3, ui.Yellow)
-		ui.TextCentered(screen, "GET READY", 140)
+		ui.BigText(screen, fmt.Sprintf("WAVE %d", s.levels.Wave()), ui.BannerY, ui.BannerScale, ui.Yellow)
+		ui.TextCentered(screen, "GET READY", ui.BannerSubY)
 	}
 	if s.paused {
-		ui.Rect(screen, 0, 0, world.ScreenW, world.ScreenH, color.RGBA{0, 0, 0, 0xa0})
-		ui.BigText(screen, "PAUSED", 90, 3, ui.White)
-		ui.TextCentered(screen, "P OR CLICK TO RESUME", 140)
+		ui.Rect(screen, 0, 0, world.ScreenW, world.ScreenH, color.RGBA{0, 0, 0, pauseDimAlpha})
+		ui.BigText(screen, "PAUSED", ui.BannerY, ui.BannerScale, ui.White)
+		ui.TextCentered(screen, "P OR CLICK TO RESUME", ui.BannerSubY)
 	}
 	if s.d.Debug {
 		ui.Text(screen, fmt.Sprintf("TPS %.0f FPS %.0f\nENEMIES %d\nBULLETS %d\nFX %d",
-			ebiten.ActualTPS(), ebiten.ActualFPS(), len(s.w.Enemies), len(s.w.Bullets), s.fx.Len()), 4, 160)
+			ebiten.ActualTPS(), ebiten.ActualFPS(), len(s.w.Enemies), len(s.w.Bullets), s.fx.Len()), ui.Margin, debugY)
 	}
 }
 
@@ -183,3 +196,14 @@ var (
 	colorRed    = assets.Color('r')
 	colorCyan   = assets.Color('c')
 )
+
+// shakeOffset returns a random whole-pixel offset for screen shake. The
+// strength fades as the remaining shake ticks run out: up to maxShakePx at
+// first, down to 1 px at the end, and none once ticks reaches 0.
+func shakeOffset(ticks int, r *rand.Rand) (dx, dy int) {
+	if ticks <= 0 {
+		return 0, 0
+	}
+	mag := max(1, min(ticks/2, maxShakePx))
+	return r.IntN(2*mag+1) - mag, r.IntN(2*mag+1) - mag
+}
