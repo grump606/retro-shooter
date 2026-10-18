@@ -53,14 +53,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawCrosshair(screen)
 }
 
+// crosshairColor is boxed into color.Color once, not on every frame.
+var crosshairColor color.Color = color.RGBA{0xff, 0xf1, 0xe8, 0xff}
+
 // drawCrosshair replaces the hidden system cursor, so the aim point always
 // matches the game's pixel grid.
 func (g *Game) drawCrosshair(screen *ebiten.Image) {
 	x, y := g.cursor()
 	x, y = math.Floor(x), math.Floor(y)
-	c := color.RGBA{0xff, 0xf1, 0xe8, 0xff}
 	for _, r := range [][4]float64{{-4, 0, 3, 1}, {2, 0, 3, 1}, {0, -4, 1, 3}, {0, 2, 1, 3}} {
-		vector.FillRect(screen, float32(x+r[0]), float32(y+r[1]), float32(r[2]), float32(r[3]), c, false)
+		vector.FillRect(screen, float32(x+r[0]), float32(y+r[1]), float32(r[2]), float32(r[3]), crosshairColor, false)
 	}
 }
 

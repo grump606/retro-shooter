@@ -42,7 +42,7 @@ func NewPlay(d *Deps) *Play {
 		w:      world.New(),
 		levels: level.New(seed),
 		fx:     NewParticles(seed),
-		canvas: ebiten.NewImage(world.ScreenW, world.ScreenH),
+		canvas: d.Canvas(),
 		// The click that started the game shouldn't also fire a shot.
 		waitRelease: true,
 		// The title screen already blipped for wave 1; only blip for later waves.

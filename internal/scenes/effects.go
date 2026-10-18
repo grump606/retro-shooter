@@ -12,10 +12,14 @@ import (
 
 // drawPixel draws one tinted pixel using the shared 1×1 image. Drawing the
 // same source image many times lets Ebitengine batch it into one draw call.
-func drawPixel(dst, px *ebiten.Image, x, y float64, c color.Color) {
+//
+// It takes color.RGBA, not color.Color: converting a color to the interface
+// allocates, and this runs for every star and particle, every frame.
+func drawPixel(dst, px *ebiten.Image, x, y float64, c color.RGBA) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(math.Floor(x), math.Floor(y))
-	op.ColorScale.ScaleWithColor(c)
+	// Same as ScaleWithColor(c): color.RGBA is already alpha-premultiplied.
+	op.ColorScale.Scale(float32(c.R)/0xff, float32(c.G)/0xff, float32(c.B)/0xff, float32(c.A)/0xff)
 	dst.DrawImage(px, op)
 }
 
